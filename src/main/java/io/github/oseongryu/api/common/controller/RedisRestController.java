@@ -41,19 +41,6 @@ public class RedisRestController {
         return ResponseEntity.ok("select");
     }
 
-    @RequestMapping(value = { "user/{usrId}/{hashKey}" }, method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity user(@PathVariable String usrId, @PathVariable String hashKey ) {
-		List<String> result = new ArrayList<>();
-        try {
-            result = boundSetOps("ustraJwt:usrId:" + usrId, hashKey);
-        } catch(Exception exception){
-            log.debug(exception.getMessage());
-        }
-        finally {
-        }
-        return ResponseEntity.ok(result);
-    }
-
     @RequestMapping(value = { "user/{usrId}" }, method = {RequestMethod.GET, RequestMethod.POST})
     public ResponseEntity userAll(@PathVariable String usrId) {
 		List<RedisInfo.Response> result = new ArrayList<>();
@@ -68,6 +55,20 @@ public class RedisRestController {
         }
         return ResponseEntity.ok(result);
     }
+
+    @RequestMapping(value = { "user/{usrId}/{hashKey}" }, method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity user(@PathVariable String usrId, @PathVariable String hashKey ) {
+		List<String> result = new ArrayList<>();
+        try {
+            result = boundSetOps("ustraJwt:usrId:" + usrId, hashKey);
+        } catch(Exception exception){
+            log.debug(exception.getMessage());
+        }
+        finally {
+        }
+        return ResponseEntity.ok(result);
+    }
+
 
 	public List<RedisInfo.Response> boundSetOps(String keyword) {
 		BoundSetOperations<String, String> boundSetOps = redisTemplate.boundSetOps(keyword);
