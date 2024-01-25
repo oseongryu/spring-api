@@ -29,6 +29,9 @@ dependencies {
 
 	compileOnly 'com.google.guava:guava:r05'
 
+	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-redis
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis:2.4.10'
+
 }
 
 tasks.named('test') {
