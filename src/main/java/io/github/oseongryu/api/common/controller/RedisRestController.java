@@ -3,6 +3,7 @@ package io.github.oseongryu.api.common.controller;
 
 import io.github.oseongryu.api.common.domain.RedisInfo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.BoundSetOperations;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,13 +22,12 @@ import java.util.*;
 @RestController
 @RequestMapping(path = io.github.oseongryu.api.common.controller.RedisRestController.REQUEST_BASE_PATH)
 public class RedisRestController {
-    static final String REQUEST_BASE_PATH = "api/redis";
+    static final String REQUEST_BASE_PATH = "api";
 
-	private final RedisTemplate<String, String> redisTemplate;
+	@Autowired
+	RedisTemplate<String, String> redisTemplate;
 
-	public RedisRestController(RedisTemplate<String, String> redisTemplate) {
-		this.redisTemplate = redisTemplate;
-	}
+
 
 	@RequestMapping(value = { "select",  }, method = {RequestMethod.GET, RequestMethod.POST})
     public ResponseEntity select(RedisInfo redisInfo) {

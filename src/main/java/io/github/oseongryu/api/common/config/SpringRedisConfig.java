@@ -27,31 +27,35 @@ public class SpringRedisConfig {
     @Value("${spring.redis.password}")
     private String password;
 
-//    @Bean
-//    public LettuceConnectionFactory lettuceConnectionFactory() {
-//        RedisClusterConfiguration clusterConfiguration = new RedisClusterConfiguration(Arrays.asList("127.0.0.1:6379", "127.0.0.1:6380", "127.0.0.1:6381")); // 클러스터 노드 설정
-//        return new LettuceConnectionFactory(clusterConfiguration);
-//    }
+    @Value("${spring.profiles.active}")
+    private String profile;
+
+     @Value("${spring.redis.cluster.nodes}")
+     private String[] nodes;
+
+    @Bean
+    public LettuceConnectionFactory lettuceConnectionFactory() {
+        if("prd".equals(profile)){
+            RedisClusterConfiguration clusterConfiguration = new RedisClusterConfiguration(Arrays.asList(nodes));
+            return new LettuceConnectionFactory(clusterConfiguration);
+        } else  {
+            RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+            redisStandaloneConfiguration.setHostName(host);
+            redisStandaloneConfiguration.setPort(port);
+            redisStandaloneConfiguration.setPassword(password);
+            return new LettuceConnectionFactory(redisStandaloneConfiguration);
+        }
+    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         // redisTemplate.setKeySerializer(new StringRedisSerializer());
         // redisTemplate.setValueSerializer(new StringRedisSerializer());
-       redisTemplate.setKeySerializer(new GenericToStringSerializer<>(Object.class)); // 키의 직렬화 설정
-       redisTemplate.setValueSerializer(new GenericToStringSerializer<>(Object.class)); // 값의 직렬화 설정
+        redisTemplate.setKeySerializer(new GenericToStringSerializer<>(Object.class)); // 키의 직렬화 설정
+        redisTemplate.setValueSerializer(new GenericToStringSerializer<>(Object.class)); // 값의 직렬화 설정
 
-//       if(hosts.length == 1) {
-            RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
-            redisStandaloneConfiguration.setHostName(host);
-            redisStandaloneConfiguration.setPort(port);
-            redisStandaloneConfiguration.setPassword(password);
-            LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
-            redisTemplate.setConnectionFactory(lettuceConnectionFactory);
-//       } else {
-//           redisTemplate.setConnectionFactory(lettuceConnectionFactory());
-//       }
-
+        redisTemplate.setConnectionFactory(lettuceConnectionFactory());
         return redisTemplate;
     }
 }
