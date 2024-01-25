@@ -2,6 +2,7 @@ package io.github.oseongryu.api.common.controller;
 
 
 import io.github.oseongryu.api.common.domain.RedisInfo;
+import io.github.oseongryu.api.common.domain.ResponseData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.BoundSetOperations;
@@ -41,36 +42,68 @@ public class RedisRestController {
         return ResponseEntity.ok("select");
     }
 
-    @RequestMapping(value = { "user/{usrId}" }, method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity userAll(@PathVariable String usrId) {
-		List<RedisInfo.Response> result = new ArrayList<>();
+    @RequestMapping(value = { "users" }, method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity users() {
+		ResponseData<List<RedisInfo.Users>> response = new ResponseData<>();
         try {
-            result = boundSetOps("ustraJwt:usrId:" + usrId);
+            response = retrieveData("ustraJwt:usrId:*");
 			// expDttm 기준으로 Response 객체 정렬
-        	Collections.sort(result, Comparator.comparing(RedisInfo.Response::getExpDttm));
+        	Collections.sort(response.getList(), Comparator.comparing(RedisInfo.Users::getLength).reversed());
         } catch(Exception exception){
             log.debug(exception.getMessage());
         }
         finally {
         }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(response);
+    }
+
+	public ResponseData<List<RedisInfo.Users>> retrieveData(String keyword) {
+		ResponseData<List<RedisInfo.Users>> response = new ResponseData<>();
+		ResponseData<List<RedisInfo.Response>> users = new ResponseData<>();
+        Set<String> keys = redisTemplate.keys(keyword);
+		List<RedisInfo.Users> mapInfo = new ArrayList<>();
+        for (String key : keys) {
+			users = boundSetOps(key, true);
+			RedisInfo.Users user = RedisInfo.Users.builder().usrId(key).length(users.getLength()).build();
+			mapInfo.add(user);
+        }
+		response.setLength(keys.size());
+		response.setList(mapInfo);
+		return response;
+    }
+
+    @RequestMapping(value = { "user/{usrId}" }, method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity userAll(@PathVariable String usrId) {
+		ResponseData<List<RedisInfo.Response>> response = new ResponseData<>();
+        try {
+            response = boundSetOps("ustraJwt:usrId:" + usrId, false);
+			// expDttm 기준으로 Response 객체 정렬
+        	Collections.sort(response.getList(), Comparator.comparing(RedisInfo.Response::getExpDttm));
+        } catch(Exception exception){
+            log.debug(exception.getMessage());
+        }
+        finally {
+        }
+        return ResponseEntity.ok(response);
     }
 
     @RequestMapping(value = { "user/{usrId}/{hashKey}" }, method = {RequestMethod.GET, RequestMethod.POST})
     public ResponseEntity user(@PathVariable String usrId, @PathVariable String hashKey ) {
-		List<String> result = new ArrayList<>();
+		ResponseData<List<String>> response = new ResponseData<>();
         try {
-            result = boundSetOps("ustraJwt:usrId:" + usrId, hashKey);
+            response = boundSetOps("ustraJwt:usrId:" + usrId, hashKey, false);
         } catch(Exception exception){
             log.debug(exception.getMessage());
         }
         finally {
         }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(response);
     }
 
 
-	public List<RedisInfo.Response> boundSetOps(String keyword) {
+	public ResponseData<List<RedisInfo.Response>> boundSetOps(String keyword, Boolean dataSkip) {
+		ResponseData<List<RedisInfo.Response>> response = new ResponseData<>();
+
 		BoundSetOperations<String, String> boundSetOps = redisTemplate.boundSetOps(keyword);
 		Set<String> memberSet = boundSetOps.members();
         long STANDARD_TIME_STAMP = toDate(LocalDateTime.of(2023, 3, 28, 0, 0)).getTime();
@@ -81,39 +114,46 @@ public class RedisRestController {
 		int expiredCount = 0;
 		int expiredTotalCount = 0;
 		List<RedisInfo.Response> mapInfo = new ArrayList<>();
-		for (final String key : memberSet) {
-            final String refreshTokenKey = "ustraJwt:" + key;
-			final String refreshTokenIdxKey = "ustraJwt:" + key + ":idx";
-			final String refreshPhantomKey = "ustraJwt:" + key + ":phantom";
-			final Long timeStamp = Long.valueOf(key.substring(0, 13));
-			index++;
-			if (index % 1000 == 0) {
-				try {
-					log.debug("=== index:{}/{}, delete:{}/{}, expired:{}/{}, timestamp:{}", index, size, delCount, delTotalCount, expiredCount, expiredTotalCount, STANDARD_TIME_STAMP);
-					delCount = 0; expiredCount=0; Thread.sleep(1);
-				} catch (InterruptedException e) {
-					log.error(e.getMessage(), e);
+		if(dataSkip) {
+
+		} else {
+			for (final String key : memberSet) {
+				final String refreshTokenKey = "ustraJwt:" + key;
+				final String refreshTokenIdxKey = "ustraJwt:" + key + ":idx";
+				final String refreshPhantomKey = "ustraJwt:" + key + ":phantom";
+				final Long timeStamp = Long.valueOf(key.substring(0, 13));
+				index++;
+				if (index % 1000 == 0) {
+					try {
+						log.debug("=== index:{}/{}, delete:{}/{}, expired:{}/{}, timestamp:{}", index, size, delCount, delTotalCount, expiredCount, expiredTotalCount, STANDARD_TIME_STAMP);
+						delCount = 0; expiredCount=0; Thread.sleep(1);
+					} catch (InterruptedException e) {
+						log.error(e.getMessage(), e);
+					}
 				}
-			}
 
-			// 이미 만료된 정보
-			if (!redisTemplate.hasKey(refreshTokenKey)) {
-//				if(!simulation) boundSetOps.remove(key);
-				// log.debug("=== index:{}, key:{} -> expired remove complete.", index, refreshTokenKey);
-				// System.out.println("=== index:"+index+", key:"+refreshTokenKey+" -> expired remove complete.");
-				expiredCount++; expiredTotalCount++;
-				continue;
-			} else {
-				RedisInfo.Response result =  getAllHashEntries(refreshTokenKey);
-				mapInfo.add(result);
+				// 이미 만료된 정보
+				if (!redisTemplate.hasKey(refreshTokenKey)) {
+	//				if(!simulation) boundSetOps.remove(key);
+					// log.debug("=== index:{}, key:{} -> expired remove complete.", index, refreshTokenKey);
+					// System.out.println("=== index:"+index+", key:"+refreshTokenKey+" -> expired remove complete.");
+					expiredCount++; expiredTotalCount++;
+					continue;
+				} else {
+					RedisInfo.Response result =  getAllHashEntries(refreshTokenKey);
+					mapInfo.add(result);
+				}
+				log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
 			}
-			log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
-        }
+		}
 
-		return mapInfo;
+		response.setLength(memberSet.size());
+		response.setList(mapInfo);
+		return response;
 	}
 
-	public List<String> boundSetOps(String keyword, String hashKey) {
+	public ResponseData<List<String>> boundSetOps(String keyword, String hashKey, Boolean dataSkip) {
+		ResponseData<List<String>> response = new ResponseData<>();
 		BoundSetOperations<String, String> boundSetOps = redisTemplate.boundSetOps(keyword);
 		Set<String> memberSet = boundSetOps.members();
         long STANDARD_TIME_STAMP = toDate(LocalDateTime.of(2023, 3, 28, 0, 0)).getTime();
@@ -123,40 +163,49 @@ public class RedisRestController {
 		int delTotalCount = 0;
 		int expiredCount = 0;
 		int expiredTotalCount = 0;
-		List<String> arrAccToken = new ArrayList<>();
-		for (final String key : memberSet) {
-            final String refreshTokenKey = "ustraJwt:" + key;
-			final String refreshTokenIdxKey = "ustraJwt:" + key + ":idx";
-			final String refreshPhantomKey = "ustraJwt:" + key + ":phantom";
-			final Long timeStamp = Long.valueOf(key.substring(0, 13));
-			index++;
-			if (index % 1000 == 0) {
-				try {
-					log.debug("=== index:{}/{}, delete:{}/{}, expired:{}/{}, timestamp:{}", index, size, delCount, delTotalCount, expiredCount, expiredTotalCount, STANDARD_TIME_STAMP);
-					delCount = 0; expiredCount=0; Thread.sleep(1);
-				} catch (InterruptedException e) {
-					log.error(e.getMessage(), e);
-				}
-			}
+		List<String> mapInfo = new ArrayList<>();
 
-			// 이미 만료된 정보
-			if (!redisTemplate.hasKey(refreshTokenKey)) {
-//				if(!simulation) boundSetOps.remove(key);
-				// log.debug("=== index:{}, key:{} -> expired remove complete.", index, refreshTokenKey);
-				// System.out.println("=== index:"+index+", key:"+refreshTokenKey+" -> expired remove complete.");
-				expiredCount++; expiredTotalCount++;
-				continue;
-			} else {
-				if(hashKey != null){
-					String accToken = getHash(refreshTokenKey, hashKey);
-					arrAccToken.add(accToken);
+		if(dataSkip) {
+
+		} else {
+			for (final String key : memberSet) {
+				final String refreshTokenKey = "ustraJwt:" + key;
+				final String refreshTokenIdxKey = "ustraJwt:" + key + ":idx";
+				final String refreshPhantomKey = "ustraJwt:" + key + ":phantom";
+				final Long timeStamp = Long.valueOf(key.substring(0, 13));
+				index++;
+				if (index % 1000 == 0) {
+					try {
+						log.debug("=== index:{}/{}, delete:{}/{}, expired:{}/{}, timestamp:{}", index, size, delCount, delTotalCount, expiredCount, expiredTotalCount, STANDARD_TIME_STAMP);
+						delCount = 0;
+						expiredCount = 0;
+						Thread.sleep(1);
+					} catch (InterruptedException e) {
+						log.error(e.getMessage(), e);
+					}
 				}
 
-			}
-			log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
-        }
+				// 이미 만료된 정보
+				if (!redisTemplate.hasKey(refreshTokenKey)) {
+					//				if(!simulation) boundSetOps.remove(key);
+					// log.debug("=== index:{}, key:{} -> expired remove complete.", index, refreshTokenKey);
+					// System.out.println("=== index:"+index+", key:"+refreshTokenKey+" -> expired remove complete.");
+					expiredCount++;
+					expiredTotalCount++;
+					continue;
+				} else {
+					if (hashKey != null) {
+						String accToken = getHash(refreshTokenKey, hashKey);
+						mapInfo.add(accToken);
+					}
 
-		return arrAccToken;
+				}
+				log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
+			}
+		}
+		response.setLength(memberSet.size());
+		response.setList(mapInfo);
+		return response;
 	}
 
 	public String getHash(String key, String hashKey) {

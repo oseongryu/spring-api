@@ -23,4 +23,15 @@ public class RedisInfo {
         private String accToken;
         private String refreshToken;
     }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @SuperBuilder
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Users {
+        private String usrId;
+        private Integer length;
+
+    }
 }
