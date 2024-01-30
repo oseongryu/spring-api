@@ -14,7 +14,7 @@ public class InfoDto {
     @ToString
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Save {
-        private String key;
+        private String keyId;
         private Long keyLength;
         private String keyType;
     }
@@ -27,7 +27,7 @@ public class InfoDto {
     @ToString
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Response {
-        private String key;
+        private String keyId;
         private Long keyLength;
         private String keyType;
     }

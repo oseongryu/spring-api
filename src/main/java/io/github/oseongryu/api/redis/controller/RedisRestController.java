@@ -68,20 +68,22 @@ public class RedisRestController {
     @RequestMapping(value = { "keyword" }, method = {RequestMethod.POST})
     public ResponseEntity keyword(@RequestBody Map<String, Object> paramMap) {
 		String keyword = paramMap.get("keyword").toString();
+		String checkSkip = paramMap.get("checkSkip").toString();
 
 		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
         try {
-            response = retrieveData(keyword, false);
+            response = retrieveData(keyword, Boolean.valueOf(checkSkip));
 			// expDttm 기준으로 Response 객체 정렬
         	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
 
-//			for (InfoDto.Response info : response.getList()) {
-//				InfoDto.Save data =  InfoDto.Save.builder()
-//						.key(info.getKey())
-//						.keyLength(info.getKeyLength())
-//						.build();
-//				infoService.insert(data);
-//			}
+			for (InfoDto.Response info : response.getList()) {
+				InfoDto.Save data =  InfoDto.Save.builder()
+						.keyId(info.getKeyId())
+						.keyLength(info.getKeyLength())
+						.keyType(info.getKeyType())
+						.build();
+				infoService.insert(data);
+			}
 
         } catch(Exception exception){
             log.debug(exception.getMessage());
@@ -111,31 +113,31 @@ public class RedisRestController {
             // 타입 확인
 			int length = 0;
             String type = redisTemplate.type(key).name().toUpperCase();
-            // 사이즈 확인
-            if (type.equals("HASH")) {
-                // Hash 값 가져오기
-                HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
-                Map<String, Object> hash = hashOperations.entries(key);
-				length = hash.size();
-//                for (String field : hash.keySet()) {
-//                    String data = hash.get(field).toString();
-//					length = data.length();
-//                }
+//            // 사이즈 확인
+//            if (type.equals("HASH")) {
+//                // Hash 값 가져오기
+//                HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
+//                Map<String, Object> hash = hashOperations.entries(key);
+//				length = hash.size();
+////                for (String field : hash.keySet()) {
+////                    String data = hash.get(field).toString();
+////					length = data.length();
+////                }
+//
+//            } else if (type.equals("SET")) {
+//                // Set 값 가져오기
+//                SetOperations<String, String> setOperations = redisTemplate.opsForSet();
+//                Set<String> set = setOperations.members(key);
+//                length = set.size();
+//            } else {
+//                // String 값 가져오기
+//                Object data = redisTemplate.opsForValue().get(key);
+//                length  = ((String) data).length();
+//            }
 
-            } else if (type.equals("SET")) {
-                // Set 값 가져오기
-                SetOperations<String, String> setOperations = redisTemplate.opsForSet();
-                Set<String> set = setOperations.members(key);
-                length = set.size();
-            } else {
-                // String 값 가져오기
-                Object data = redisTemplate.opsForValue().get(key);
-                length  = ((String) data).length();
-            }
 
-
-			InfoDto.Response user = InfoDto.Response.builder().key(key).keyLength((long) length).build();
-			mapInfo.add(user);
+			InfoDto.Response info = InfoDto.Response.builder().keyId(key).keyLength((long) length).keyType(type).build();
+			mapInfo.add(info);
         }
 		response.setLength(keys.size());
 		response.setList(mapInfo);
