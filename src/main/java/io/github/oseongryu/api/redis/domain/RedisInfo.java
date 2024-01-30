@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+
 public class RedisInfo {
 
     @NoArgsConstructor
@@ -22,16 +26,5 @@ public class RedisInfo {
         private String expDttm;
         private String accToken;
         private String refreshToken;
-    }
-
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @SuperBuilder
-    @Data
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class Users {
-        private String usrId;
-        private Integer length;
-
     }
 }

@@ -3,17 +3,14 @@ package io.github.oseongryu.api.redis.controller;
 
 import io.github.oseongryu.api.redis.domain.RedisInfo;
 import io.github.oseongryu.api.redis.domain.ResponseData;
+import io.github.oseongryu.api.redis.dto.InfoDto;
+import io.github.oseongryu.api.redis.service.InfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.BoundSetOperations;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.*;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -21,13 +18,16 @@ import java.util.*;
 
 @Slf4j
 @RestController
-@RequestMapping(path = RedisRestController.REQUEST_BASE_PATH)
+@RequestMapping(path = io.github.oseongryu.api.redis.controller.RedisRestController.REQUEST_BASE_PATH)
 public class RedisRestController {
     static final String REQUEST_BASE_PATH = "api";
 
 	@Autowired
+    @Lazy
 	RedisTemplate<String, String> redisTemplate;
 
+	@Autowired
+	InfoService infoService;
 
 
 	@RequestMapping(value = { "select",  }, method = {RequestMethod.GET, RequestMethod.POST})
@@ -42,13 +42,22 @@ public class RedisRestController {
         return ResponseEntity.ok("select");
     }
 
-    @RequestMapping(value = { "users" }, method = {RequestMethod.GET, RequestMethod.POST})
+    @RequestMapping(value = { "users" }, method = {RequestMethod.GET})
     public ResponseEntity users() {
-		ResponseData<List<RedisInfo.Users>> response = new ResponseData<>();
+		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
         try {
-            response = retrieveData("ustraJwt:usrId:*");
+            response = retrieveData("ustraJwt:usrId:*", false);
 			// expDttm 기준으로 Response 객체 정렬
-        	Collections.sort(response.getList(), Comparator.comparing(RedisInfo.Users::getLength).reversed());
+        	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
+
+//			for (InfoDto.Response info : response.getList()) {
+//				UsersDto.Save data =  UsersDto.Save.builder()
+//						.usrId(info.getUsrId())
+//						.tokenLength(info.getLength())
+//						.build();
+//				infoService.insert(data);
+//			}
+
         } catch(Exception exception){
             log.debug(exception.getMessage());
         }
@@ -57,14 +66,76 @@ public class RedisRestController {
         return ResponseEntity.ok(response);
     }
 
-	public ResponseData<List<RedisInfo.Users>> retrieveData(String keyword) {
-		ResponseData<List<RedisInfo.Users>> response = new ResponseData<>();
+    @RequestMapping(value = { "keyword" }, method = {RequestMethod.POST})
+    public ResponseEntity keyword(@RequestBody Map<String, Object> paramMap) {
+		String keyword = paramMap.get("keyword").toString();
+
+		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
+        try {
+            response = retrieveData(keyword, false);
+			// expDttm 기준으로 Response 객체 정렬
+        	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
+
+//			for (InfoDto.Response info : response.getList()) {
+//				InfoDto.Save data =  InfoDto.Save.builder()
+//						.key(info.getKey())
+//						.keyLength(info.getKeyLength())
+//						.build();
+//				infoService.insert(data);
+//			}
+
+        } catch(Exception exception){
+            log.debug(exception.getMessage());
+        }
+        finally {
+        }
+        return ResponseEntity.ok(response);
+    }
+
+
+	public ResponseData<List<InfoDto.Response>> retrieveData(String keyword, Boolean checkSkip) {
+		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
 		ResponseData<List<RedisInfo.Response>> users = new ResponseData<>();
         Set<String> keys = redisTemplate.keys(keyword);
-		List<RedisInfo.Users> mapInfo = new ArrayList<>();
+		List<InfoDto.Response> mapInfo = new ArrayList<>();
         for (String key : keys) {
-			users = boundSetOps(key, true);
-			RedisInfo.Users user = RedisInfo.Users.builder().usrId(key).length(users.getLength()).build();
+			if(!checkSkip){
+				users = boundSetOps(key, true);
+			}
+			int cnt = 0;
+			if(users.getLength() == null) {
+				cnt = 0;
+			} else {
+				cnt = users.getLength();
+			}
+
+            // 타입 확인
+			int length = 0;
+            String type = redisTemplate.type(key).name().toUpperCase();
+            // 사이즈 확인
+            if (type.equals("HASH")) {
+                // Hash 값 가져오기
+                HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
+                Map<String, Object> hash = hashOperations.entries(key);
+				length = hash.size();
+//                for (String field : hash.keySet()) {
+//                    String data = hash.get(field).toString();
+//					length = data.length();
+//                }
+
+            } else if (type.equals("SET")) {
+                // Set 값 가져오기
+                SetOperations<String, String> setOperations = redisTemplate.opsForSet();
+                Set<String> set = setOperations.members(key);
+                length = set.size();
+            } else {
+                // String 값 가져오기
+                Object data = redisTemplate.opsForValue().get(key);
+                length  = ((String) data).length();
+            }
+
+
+			InfoDto.Response user = InfoDto.Response.builder().key(key).keyLength((long) length).build();
 			mapInfo.add(user);
         }
 		response.setLength(keys.size());
