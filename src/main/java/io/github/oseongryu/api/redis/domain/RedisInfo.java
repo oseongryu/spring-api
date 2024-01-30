@@ -1,4 +1,4 @@
-package io.github.oseongryu.api.common.domain;
+package io.github.oseongryu.api.redis.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;

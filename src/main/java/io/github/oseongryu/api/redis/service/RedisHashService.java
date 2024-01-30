@@ -1,4 +1,4 @@
-package io.github.oseongryu.api.common.service;
+package io.github.oseongryu.api.redis.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.HashOperations;

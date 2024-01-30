@@ -1,8 +1,8 @@
-package io.github.oseongryu.api.common.controller;
+package io.github.oseongryu.api.redis.controller;
 
 
-import io.github.oseongryu.api.common.domain.RedisInfo;
-import io.github.oseongryu.api.common.domain.ResponseData;
+import io.github.oseongryu.api.redis.domain.RedisInfo;
+import io.github.oseongryu.api.redis.domain.ResponseData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.BoundSetOperations;
@@ -21,7 +21,7 @@ import java.util.*;
 
 @Slf4j
 @RestController
-@RequestMapping(path = io.github.oseongryu.api.common.controller.RedisRestController.REQUEST_BASE_PATH)
+@RequestMapping(path = RedisRestController.REQUEST_BASE_PATH)
 public class RedisRestController {
     static final String REQUEST_BASE_PATH = "api";
 

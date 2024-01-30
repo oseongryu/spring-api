@@ -32,6 +32,10 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis:2.4.10'
 
+	// https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc6
+	implementation group: 'com.oracle.database.jdbc', name: 'ojdbc6', version: '11.2.0.4'
+
+
 }
 
 tasks.named('test') {
