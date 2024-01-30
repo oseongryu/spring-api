@@ -31,5 +31,22 @@ public class InfoDto {
         private Long keyLength;
         private String keyType;
     }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @SuperBuilder
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class RedisInfo {
+        private String duplicated;
+        private String _class;
+        private String useCnt;
+        private String expiration;
+        private String dvcId;
+        private String usrId;
+        private String expDttm;
+        private String accToken;
+        private String refreshToken;
+    }
 }
 

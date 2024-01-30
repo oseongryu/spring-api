@@ -1,7 +1,6 @@
 package io.github.oseongryu.api.redis.controller;
 
 
-import io.github.oseongryu.api.redis.domain.RedisInfo;
 import io.github.oseongryu.api.redis.domain.ResponseData;
 import io.github.oseongryu.api.redis.dto.InfoDto;
 import io.github.oseongryu.api.redis.service.InfoService;
@@ -31,7 +30,7 @@ public class RedisRestController {
 
 
 	@RequestMapping(value = { "select",  }, method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity select(RedisInfo redisInfo) {
+    public ResponseEntity select(InfoDto.RedisInfo redisInfo) {
         try {
             getString("CERT_NO");
         } catch(Exception exception){
@@ -95,7 +94,7 @@ public class RedisRestController {
 
 	public ResponseData<List<InfoDto.Response>> retrieveData(String keyword, Boolean checkSkip) {
 		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
-		ResponseData<List<RedisInfo.Response>> users = new ResponseData<>();
+		ResponseData<List<InfoDto.RedisInfo>> users = new ResponseData<>();
         Set<String> keys = redisTemplate.keys(keyword);
 		List<InfoDto.Response> mapInfo = new ArrayList<>();
         for (String key : keys) {
@@ -145,11 +144,11 @@ public class RedisRestController {
 
     @RequestMapping(value = { "user/{usrId}" }, method = {RequestMethod.GET, RequestMethod.POST})
     public ResponseEntity userAll(@PathVariable String usrId) {
-		ResponseData<List<RedisInfo.Response>> response = new ResponseData<>();
+		ResponseData<List<InfoDto.RedisInfo>> response = new ResponseData<>();
         try {
             response = boundSetOps("ustraJwt:usrId:" + usrId, false);
 			// expDttm 기준으로 Response 객체 정렬
-        	Collections.sort(response.getList(), Comparator.comparing(RedisInfo.Response::getExpDttm));
+        	Collections.sort(response.getList(), Comparator.comparing(InfoDto.RedisInfo::getExpDttm));
         } catch(Exception exception){
             log.debug(exception.getMessage());
         }
@@ -172,8 +171,8 @@ public class RedisRestController {
     }
 
 
-	public ResponseData<List<RedisInfo.Response>> boundSetOps(String keyword, Boolean dataSkip) {
-		ResponseData<List<RedisInfo.Response>> response = new ResponseData<>();
+	public ResponseData<List<InfoDto.RedisInfo>> boundSetOps(String keyword, Boolean dataSkip) {
+		ResponseData<List<InfoDto.RedisInfo>> response = new ResponseData<>();
 
 		BoundSetOperations<String, String> boundSetOps = redisTemplate.boundSetOps(keyword);
 		Set<String> memberSet = boundSetOps.members();
@@ -184,7 +183,7 @@ public class RedisRestController {
 		int delTotalCount = 0;
 		int expiredCount = 0;
 		int expiredTotalCount = 0;
-		List<RedisInfo.Response> mapInfo = new ArrayList<>();
+		List<InfoDto.RedisInfo> mapInfo = new ArrayList<>();
 		if(dataSkip) {
 
 		} else {
@@ -211,7 +210,7 @@ public class RedisRestController {
 					expiredCount++; expiredTotalCount++;
 					continue;
 				} else {
-					RedisInfo.Response result =  getAllHashEntries(refreshTokenKey);
+					InfoDto.RedisInfo result =  getAllHashEntries(refreshTokenKey);
 					mapInfo.add(result);
 				}
 				log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
@@ -288,14 +287,14 @@ public class RedisRestController {
 		return value;
 	}
 
-	public RedisInfo.Response getAllHashEntries(String key) {
+	public InfoDto.RedisInfo getAllHashEntries(String key) {
         HashOperations<String, String, String> hashOperations = redisTemplate.opsForHash();
 		Map<String, String> map =  hashOperations.entries(key);
 		String usrId = map.get("usrId");
 		String accToken = map.get("accToken");
 		String refreshToken = map.get("refreshToken");
 		String expDttm = map.get("expDttm");
-		RedisInfo.Response redisInfo = RedisInfo.Response.builder()
+		InfoDto.RedisInfo redisInfo = InfoDto.RedisInfo.builder()
 				.usrId(usrId)
 				.accToken(accToken)
 				.refreshToken(refreshToken)
