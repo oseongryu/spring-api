@@ -45,7 +45,7 @@ public class RedisRestController {
     public ResponseEntity users() {
 		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
         try {
-            response = retrieveData("ustraJwt:usrId:*", false);
+            response = retrieveData("ustraJwt:usrId:*", false, true);
 			// expDttm 기준으로 Response 객체 정렬
         	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
 
@@ -65,25 +65,18 @@ public class RedisRestController {
         return ResponseEntity.ok(response);
     }
 
-    @RequestMapping(value = { "keyword" }, method = {RequestMethod.POST})
-    public ResponseEntity keyword(@RequestBody Map<String, Object> paramMap) {
-		String keyword = paramMap.get("keyword").toString();
-		String checkSkip = paramMap.get("checkSkip").toString();
-
-		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
+    @RequestMapping(value = { "ustraJwt" }, method = {RequestMethod.GET})
+    public ResponseEntity ustraJwt() {
+		ResponseData<List<InfoDto.RedisInfo>> response = new ResponseData<>();
         try {
-            response = retrieveData(keyword, Boolean.valueOf(checkSkip));
-			// expDttm 기준으로 Response 객체 정렬
-        	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
-
-			for (InfoDto.Response info : response.getList()) {
-				InfoDto.Save data =  InfoDto.Save.builder()
-						.keyId(info.getKeyId())
-						.keyLength(info.getKeyLength())
-						.keyType(info.getKeyType())
-						.build();
-				infoService.insert(data);
-			}
+            response = retrieveDataUstraJwt("ustraJwt", false, false);
+//			for (InfoDto.Response info : response.getList()) {
+//				UsersDto.Save data =  UsersDto.Save.builder()
+//						.usrId(info.getUsrId())
+//						.tokenLength(info.getLength())
+//						.build();
+//				infoService.insert(data);
+//			}
 
         } catch(Exception exception){
             log.debug(exception.getMessage());
@@ -94,54 +87,37 @@ public class RedisRestController {
     }
 
 
-	public ResponseData<List<InfoDto.Response>> retrieveData(String keyword, Boolean checkSkip) {
+
+    @RequestMapping(value = { "keyword" }, method = {RequestMethod.POST})
+    public ResponseEntity keyword(@RequestBody Map<String, Object> paramMap) {
+		String keyword = paramMap.get("keyword").toString();
+		String checkSkip = paramMap.get("checkSkip").toString();
+		String dataSkip = paramMap.get("dataSkip").toString();
+		String save = paramMap.get("save").toString();
+
 		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
-		ResponseData<List<InfoDto.RedisInfo>> users = new ResponseData<>();
-        Set<String> keys = redisTemplate.keys(keyword);
-		List<InfoDto.Response> mapInfo = new ArrayList<>();
-        for (String key : keys) {
-			if(!checkSkip){
-				users = boundSetOps(key, true);
+        try {
+            response = retrieveData(keyword, Boolean.valueOf(checkSkip),  Boolean.valueOf(dataSkip));
+			// expDttm 기준으로 Response 객체 정렬
+        	Collections.sort(response.getList(), Comparator.comparing(InfoDto.Response::getKeyLength).reversed());
+			if( Boolean.valueOf(save)) {
+				for (InfoDto.Response info : response.getList()) {
+					InfoDto.Save data =  InfoDto.Save.builder()
+							.keyId(info.getKeyId())
+							.keyLength(info.getKeyLength())
+							.keyType(info.getKeyType())
+							.build();
+					infoService.insert(data);
+				}
 			}
-			int cnt = 0;
-			if(users.getLength() == null) {
-				cnt = 0;
-			} else {
-				cnt = users.getLength();
-			}
-
-            // 타입 확인
-			int length = 0;
-            String type = redisTemplate.type(key).name().toUpperCase();
-//            // 사이즈 확인
-//            if (type.equals("HASH")) {
-//                // Hash 값 가져오기
-//                HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
-//                Map<String, Object> hash = hashOperations.entries(key);
-//				length = hash.size();
-////                for (String field : hash.keySet()) {
-////                    String data = hash.get(field).toString();
-////					length = data.length();
-////                }
-//
-//            } else if (type.equals("SET")) {
-//                // Set 값 가져오기
-//                SetOperations<String, String> setOperations = redisTemplate.opsForSet();
-//                Set<String> set = setOperations.members(key);
-//                length = set.size();
-//            } else {
-//                // String 값 가져오기
-//                Object data = redisTemplate.opsForValue().get(key);
-//                length  = ((String) data).length();
-//            }
 
 
-			InfoDto.Response info = InfoDto.Response.builder().keyId(key).keyLength((long) length).keyType(type).build();
-			mapInfo.add(info);
+        } catch(Exception exception){
+            log.debug(exception.getMessage());
         }
-		response.setLength(keys.size());
-		response.setList(mapInfo);
-		return response;
+        finally {
+        }
+        return ResponseEntity.ok(response);
     }
 
     @RequestMapping(value = { "user/{usrId}" }, method = {RequestMethod.GET, RequestMethod.POST})
@@ -171,6 +147,103 @@ public class RedisRestController {
         }
         return ResponseEntity.ok(response);
     }
+
+	public ResponseData<List<InfoDto.Response>> retrieveData(String keyword, Boolean checkSkip, Boolean dataSkip) {
+		ResponseData<List<InfoDto.Response>> response = new ResponseData<>();
+		ResponseData<List<InfoDto.RedisInfo>> users = new ResponseData<>();
+        Set<String> keysList = redisTemplate.keys(keyword);
+		List<InfoDto.Response> mapInfo = new ArrayList<>();
+        for (String key : keysList) {
+			// 타입 확인
+			int length = 0;
+			String type = "";
+			if(!checkSkip){
+				users = boundSetOps(key, dataSkip);
+            	type = redisTemplate.type(key).name().toUpperCase();
+			}
+			int cnt = 0;
+			if(users.getLength() == null) {
+				cnt = 0;
+			} else {
+				cnt = users.getLength();
+			}
+
+
+//            // 사이즈 확인
+//            if (type.equals("HASH")) {
+//                // Hash 값 가져오기
+//                HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
+//                Map<String, Object> hash = hashOperations.entries(key);
+//				length = hash.size();
+////                for (String field : hash.keySet()) {
+////                    String data = hash.get(field).toString();
+////					length = data.length();
+////                }
+//
+//            } else if (type.equals("SET")) {
+//                // Set 값 가져오기
+//                SetOperations<String, String> setOperations = redisTemplate.opsForSet();
+//                Set<String> set = setOperations.members(key);
+//                length = set.size();
+//            } else {
+//                // String 값 가져오기
+//                Object data = redisTemplate.opsForValue().get(key);
+//                length  = ((String) data).length();
+//            }
+
+
+			InfoDto.Response info = InfoDto.Response.builder().keyId(key).keyLength((long) length).keyType(type).build();
+			mapInfo.add(info);
+        }
+		response.setLength(keysList.size());
+		response.setList(mapInfo);
+		return response;
+    }
+
+	public ResponseData<List<InfoDto.RedisInfo>> retrieveDataUstraJwt(String keyword, Boolean checkSkip, Boolean dataSkip) {
+		ResponseData<List<InfoDto.RedisInfo>> response = new ResponseData<>();
+        Set<String> keys = redisTemplate.keys(keyword);
+		List<InfoDto.Response> mapInfo = new ArrayList<>();
+        for (String key : keys) {
+			if(!checkSkip){
+				response = boundSetOpsUstraJwt(key, dataSkip);
+			}
+
+        }
+		return response;
+    }
+
+	public ResponseData<List<InfoDto.RedisInfo>> boundSetOpsUstraJwt(String keyword, Boolean dataSkip) {
+		ResponseData<List<InfoDto.RedisInfo>> response = new ResponseData<>();
+
+		BoundSetOperations<String, String> boundSetOps = redisTemplate.boundSetOps(keyword);
+		Set<String> memberSet = boundSetOps.members();
+        long STANDARD_TIME_STAMP = toDate(LocalDateTime.of(2023, 3, 28, 0, 0)).getTime();
+		int index = -1;
+		int size = memberSet.size();
+		int delCount = 0;
+		int delTotalCount = 0;
+		int expiredCount = 0;
+		int expiredTotalCount = 0;
+		List<InfoDto.RedisInfo> mapInfo = new ArrayList<>();
+		if(dataSkip) {
+
+		} else {
+			for (final String key : memberSet) {
+				final String tokenKey = "*" + key + "*";
+//				Set<String> keys = redisTemplate.keys(tokenKey);
+//				if (keys.size() > 0) {
+					mapInfo.add(InfoDto.RedisInfo.builder().usrId(tokenKey).build());
+//				} else if(keys.size() == 0) {
+
+//				}
+			}
+		}
+
+		response.setLength(mapInfo.size());
+		response.setList(mapInfo);
+		return response;
+	}
 
 
 	public ResponseData<List<InfoDto.RedisInfo>> boundSetOps(String keyword, Boolean dataSkip) {
@@ -270,7 +343,6 @@ public class RedisRestController {
 						String accToken = getHash(refreshTokenKey, hashKey);
 						mapInfo.add(accToken);
 					}
-
 				}
 				log.debug("=== complete info -> total:{}, delete:{}, expired:{}, set timestamp:{}", size, delTotalCount, expiredTotalCount, STANDARD_TIME_STAMP);
 			}
