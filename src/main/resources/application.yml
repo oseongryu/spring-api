@@ -48,6 +48,19 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
+
+
+---
+spring:
+  profiles: local-oracle
+  datasource:
+    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: jdbc:log4jdbc:oracle:thin:@localhost:1521:xe
+    username: testdb
+    password: 1234
+  jpa:
+    database-platform: org.hibernate.dialect.Oracle12cDialect
+
 ---
 spring:
   profiles: prd
